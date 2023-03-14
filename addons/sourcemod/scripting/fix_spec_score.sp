@@ -2,18 +2,16 @@
 #pragma newdecls                required
 
 #include <sourcemod>
-#include <sdktools>
 
 
 public Plugin myinfo = { 
 	name = "FixSpecScore",
 	author = "TouchMe",
 	description = "Fixes round score for spectator to versus",
-	version = "1.0"
+	version = "1.0",
+	url = "https://github.com/TouchMe-Inc/l4d2_fix_spec_score"
 };
 
-
-#define GAMEMODE_VERSUS_STR     "versus"
 
 #define TEAM_SPECTATOR          1
 #define TEAM_INFECTED           3
@@ -23,7 +21,8 @@ public Plugin myinfo = {
 #define IS_SPECTATOR(%1)        (GetClientTeam(%1) == TEAM_SPECTATOR)
 
 
-bool 
+bool
+	g_bGamemodeAvailable = false,
 	g_bLateLoad = false;
 
 ConVar 
@@ -118,8 +117,12 @@ public void OnConfigsExecuted()
  */
 void CheckGameMode(const char[] sGameMode)
 {
-	if (StrContains(sGameMode, GAMEMODE_VERSUS_STR, false) == -1) {
-		SetFailState("Unsupported mode %s", sGameMode);
+	if (!StrEqual(sGameMode, "versus", false) && !StrEqual(sGameMode, "mutation12", false)) {
+		g_bGamemodeAvailable = false;
+	} 
+	
+	else {
+		g_bGamemodeAvailable = true;
 	}
 }
 
@@ -128,34 +131,8 @@ void CheckGameMode(const char[] sGameMode)
  * 
  * @noreturn
  */
-void InitEvents() 
-{
-	HookEvent("player_team", Event_PlayerTeam);
+void InitEvents() {
 	HookEvent("versus_round_start", Event_RoundStart, EventHookMode_PostNoCopy);
-}
-
-/**
- * Player team change event event.
- *
- * @param iClient      Client index.
- * @param iOldTeam     Client old team
- * @param iNewTeam     Client new team
- */
-public Action Event_PlayerTeam(Event event, char[] event_name, bool dontBroadcast)
-{
-	int iClient = GetClientOfUserId(event.GetInt("userid"));
-
-	if (IS_REAL_CLIENT(iClient))
-	{
-		int iOldTeam = event.GetInt("oldteam");
-		int iNewTeam = event.GetInt("team");
-
-		if (!iOldTeam && iNewTeam == TEAM_SPECTATOR) {
-			RespectateClient(iClient);
-		}
-	}
-
-	return Plugin_Continue;
 }
 
 /**
@@ -163,6 +140,10 @@ public Action Event_PlayerTeam(Event event, char[] event_name, bool dontBroadcas
  */
 public Action Event_RoundStart(Event event, const char[] name, bool dontBroadcast) 
 {
+	if (!g_bGamemodeAvailable) {
+		return Plugin_Continue;
+	}
+
 	for (int iClient = 1; iClient <= MaxClients; iClient++)
 	{
 		if (!IS_REAL_CLIENT(iClient) || !IS_SPECTATOR(iClient)) {
