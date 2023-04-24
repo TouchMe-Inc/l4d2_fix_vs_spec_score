@@ -8,7 +8,7 @@ public Plugin myinfo = {
 	name = "FixSpecScore",
 	author = "TouchMe",
 	description = "Fixes round score for spectator to versus",
-	version = "1.0",
+	version = "build_0001",
 	url = "https://github.com/TouchMe-Inc/l4d2_fix_spec_score"
 };
 
@@ -16,17 +16,19 @@ public Plugin myinfo = {
 #define TEAM_SPECTATOR          1
 #define TEAM_INFECTED           3
 
+// Gamemode
+#define GAMEMODE_VERSUS         "versus"
+#define GAMEMODE_VERSUS_REALISM "mutation12"
+
+// Macros
 #define IS_VALID_CLIENT(%1)     (%1 > 0 && %1 <= MaxClients)
 #define IS_REAL_CLIENT(%1)      (IsClientInGame(%1) && !IsFakeClient(%1))
 #define IS_SPECTATOR(%1)        (GetClientTeam(%1) == TEAM_SPECTATOR)
 
 
-bool
-	g_bGamemodeAvailable = false,
-	g_bLateLoad = false;
+bool g_bGamemodeAvailable = false;
 
-ConVar 
-	g_hGameMode = null;
+ConVar g_hGameMode = null;
 
 
 /**
@@ -47,41 +49,16 @@ public APLRes AskPluginLoad2(Handle hMySelf, bool bLate, char[] sErr, int iErrLe
 		return APLRes_SilentFailure;
 	}
 
-	g_bLateLoad = bLate;
-
 	return APLRes_Success;
 }
 
 /**
  * Called when the plugin is fully initialized and all known external references are resolved.
- * 
- * @noreturn
  */
 public void OnPluginStart()
 {
-	InitEvents();
-	InitCvars();
-	
-	if (g_bLateLoad) 
-	{
-		for (int iClient = 1; iClient <= MaxClients; iClient++)
-		{
-			if (IS_REAL_CLIENT(iClient)) {
-				RespectateClient(iClient);
-			}
-		}
-	}
-}
-
-/**
- * Fragment
- * 
- * @noreturn
- */
-void InitCvars()
-{
-	g_hGameMode = FindConVar("mp_gamemode");
-	g_hGameMode.AddChangeHook(OnGamemodeChanged);
+	(g_hGameMode = FindConVar("mp_gamemode")).AddChangeHook(OnGamemodeChanged);
+	HookEvent("versus_round_start", Event_RoundStart, EventHookMode_PostNoCopy);
 }
 
 /**
@@ -92,9 +69,8 @@ void InitCvars()
  * @param newValue     String containing the new value of the convar
  * @noreturn
  */
-public void OnGamemodeChanged(ConVar convar, const char[] sOldGameMode, const char[] sNewGameMode) 
-{
-	CheckGameMode(sNewGameMode);
+public void OnGamemodeChanged(ConVar convar, const char[] sOldGameMode, const char[] sNewGameMode) {
+	g_bGamemodeAvailable = IsVersusMode(sNewGameMode);
 }
 
 /**
@@ -107,32 +83,7 @@ public void OnConfigsExecuted()
 {
 	char sGameMode[16];
 	GetConVarString(g_hGameMode, sGameMode, sizeof(sGameMode));
-	CheckGameMode(sGameMode);
-}
-
-/**
- * Fragment
- * 
- * @noreturn
- */
-void CheckGameMode(const char[] sGameMode)
-{
-	if (!StrEqual(sGameMode, "versus", false) && !StrEqual(sGameMode, "mutation12", false)) {
-		g_bGamemodeAvailable = false;
-	} 
-	
-	else {
-		g_bGamemodeAvailable = true;
-	}
-}
-
-/**
- * Fragment
- * 
- * @noreturn
- */
-void InitEvents() {
-	HookEvent("versus_round_start", Event_RoundStart, EventHookMode_PostNoCopy);
+	g_bGamemodeAvailable = IsVersusMode(sGameMode);
 }
 
 /**
@@ -157,9 +108,7 @@ public Action Event_RoundStart(Event event, const char[] name, bool dontBroadcas
 }
 
 /**
- * Fragment.
- * 
- * @noreturn
+ * A hack that switches the player to the infected team and back to the observers.
  */
 void RespectateClient(int iClient)
 {
@@ -177,4 +126,15 @@ public Action Timer_TurnClientToSpectate(Handle timer, int iClient)
 	}
 
 	return Plugin_Handled;
+}
+
+/**
+ * Is the game mode versus.
+ *
+ * @param sGameMode     A string containing the name of the game mode
+ *
+ * @return              Returns true if verus, otherwise false
+ */
+bool IsVersusMode(const char[] sGameMode) {
+	return (StrEqual(sGameMode, GAMEMODE_VERSUS, false) || StrEqual(sGameMode, GAMEMODE_VERSUS_REALISM, false));
 }
