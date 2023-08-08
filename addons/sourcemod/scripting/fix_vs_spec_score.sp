@@ -5,11 +5,11 @@
 
 
 public Plugin myinfo = { 
-	name = "FixSpecScore",
+	name = "FixVersusSpecScore",
 	author = "TouchMe",
 	description = "Fixes round score for spectator to versus",
 	version = "build_0001",
-	url = "https://github.com/TouchMe-Inc/l4d2_fix_spec_score"
+	url = "https://github.com/TouchMe-Inc/l4d2_fix_vs_spec_score"
 };
 
 
